@@ -18,6 +18,11 @@ echo "=== Data:    ${DATA_DIR}"
 echo "=== Output:  ${RUN_DIR}"
 echo ""
 
+# GenePattern passes multi-value FILE parameters as a list file (one absolute
+# path per line).  Simulate that here by writing a list file into the run dir.
+LIST_FILE="${RUN_DIR}/input.tar.gz.list"
+echo "/data/f1r2_test.tar.gz" > "${LIST_FILE}"
+
 CMD=(docker run --rm
   -v "${DATA_DIR}:/data"
   -v "${RUN_DIR}:/work"
@@ -25,7 +30,7 @@ CMD=(docker run --rm
   -w /work
   "${IMAGE}"
   bash /usr/local/bin/gatk_learnreadorientationmodel_wrapper.sh
-    --input.tar.gz /data/f1r2_test.tar.gz
+    --input.tar.gz /work/input.tar.gz.list
     --output.file.name artifact-prior.tar.gz
 )
 

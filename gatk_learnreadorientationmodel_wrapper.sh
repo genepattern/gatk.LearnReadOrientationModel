@@ -15,6 +15,11 @@ TOOL_NAME="gatk.LearnReadOrientationModel"
 # ---------------------------------------------------------------------------
 # Parameter variables (populated by parse_arguments)
 # ---------------------------------------------------------------------------
+# GenePattern passes multi-value FILE parameters (numValues=1+) as a single
+# path to a list file containing one absolute file path per line.  The
+# variable below holds that list-file path; expand_inputs() reads it and
+# populates INPUT_TAR_GZ_FILES with the actual tar.gz paths.
+INPUT_TAR_GZ_LIST_FILE=""
 INPUT_TAR_GZ_FILES=()
 OUTPUT_FILE_NAME=""
 NUM_EM_ITERATIONS=""
@@ -40,8 +45,10 @@ usage() {
     echo "GenePattern wrapper for GATK LearnReadOrientationModel"
     echo ""
     echo "Required options:"
-    echo "  --input.tar.gz FILE            F1R2 counts tar.gz from Mutect2 or CollectF1R2Counts"
-    echo "                                 (may be repeated for multiple scatters)"
+    echo "  --input.tar.gz FILE            Path to a GenePattern list file whose lines are"
+    echo "                                 absolute paths to F1R2 tar.gz files (one per line)."
+    echo "                                 GenePattern generates this list file automatically"
+    echo "                                 when multiple files are submitted for a 1+ parameter."
     echo "  --output.file.name TEXT        Name for the output artifact prior tar.gz"
     echo ""
     echo "Optional options:"
@@ -66,7 +73,9 @@ parse_arguments() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --input.tar.gz)
-                INPUT_TAR_GZ_FILES+=("$2")
+                # GenePattern passes a single list-file path for multi-value FILE params.
+                # expand_inputs() will read the actual tar.gz paths from this file.
+                INPUT_TAR_GZ_LIST_FILE="$2"
                 shift 2
                 ;;
             --output.file.name)
@@ -105,22 +114,53 @@ parse_arguments() {
 }
 
 # ---------------------------------------------------------------------------
+# Expand multi-value FILE input
+#
+# GenePattern passes multi-value FILE parameters (numValues=1+ or 0+) as a
+# single path to a server-generated list file.  Each line of that list file
+# is an absolute path to one of the actual input files.  This function reads
+# the list file and populates INPUT_TAR_GZ_FILES with the real paths.
+# ---------------------------------------------------------------------------
+expand_inputs() {
+    if [[ -z "$INPUT_TAR_GZ_LIST_FILE" ]]; then
+        echo "[ERROR] --input.tar.gz is required."
+        exit 1
+    fi
+    if [[ ! -f "$INPUT_TAR_GZ_LIST_FILE" ]]; then
+        echo "[ERROR] Input list file not found: $INPUT_TAR_GZ_LIST_FILE"
+        exit 1
+    fi
+
+    echo "[INFO] Reading F1R2 input paths from list file: $INPUT_TAR_GZ_LIST_FILE"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Skip blank lines
+        [[ -z "$line" ]] && continue
+        INPUT_TAR_GZ_FILES+=("$line")
+    done < "$INPUT_TAR_GZ_LIST_FILE"
+
+    if [[ ${#INPUT_TAR_GZ_FILES[@]} -eq 0 ]]; then
+        echo "[ERROR] No F1R2 file paths found in list file: $INPUT_TAR_GZ_LIST_FILE"
+        exit 1
+    fi
+
+    echo "[INFO] Found ${#INPUT_TAR_GZ_FILES[@]} F1R2 input file(s):"
+    for f in "${INPUT_TAR_GZ_FILES[@]}"; do
+        echo "[INFO]   $f"
+    done
+}
+
+# ---------------------------------------------------------------------------
 # Input validation
 # ---------------------------------------------------------------------------
 validate_inputs() {
     local errors=0
 
-    # Required parameter presence checks
-    if [[ ${#INPUT_TAR_GZ_FILES[@]} -eq 0 ]]; then
-        echo "[ERROR] At least one --input.tar.gz is required."
-        errors=$((errors+1))
-    fi
     if [[ -z "$OUTPUT_FILE_NAME" ]]; then
         echo "[ERROR] --output.file.name is required."
         errors=$((errors+1))
     fi
 
-    # File existence checks
+    # File existence checks for each expanded F1R2 path
     for f in "${INPUT_TAR_GZ_FILES[@]}"; do
         if [[ ! -f "$f" ]]; then
             echo "[ERROR] Input F1R2 file not found: $f"
@@ -142,10 +182,6 @@ validate_inputs() {
     fi
 
     echo "[INFO] Input validation passed."
-    echo "[INFO] Number of F1R2 input files: ${#INPUT_TAR_GZ_FILES[@]}"
-    for f in "${INPUT_TAR_GZ_FILES[@]}"; do
-        echo "[INFO]   $f"
-    done
 }
 
 # ---------------------------------------------------------------------------
@@ -207,6 +243,7 @@ main() {
     echo "[INFO] Working directory: $(pwd)"
 
     parse_arguments "$@"
+    expand_inputs
     validate_inputs
     run_tool
 
