@@ -1,0 +1,91 @@
+# GenePattern Module Manifest
+
+LSID=urn:lsid:broad.mit.edu:cancer.software.genepattern.module.generated:00000:1
+name=gatk.LearnReadOrientationModel
+version=1
+author=GenePattern Team, Broad Institute
+description=Learns read orientation artifact priors from F1R2 counts produced by Mutect2 or CollectF1R2Counts. Uses an Expectation-Maximization algorithm to model orientation-dependent sequencing artifacts (e.g., OxoG damage) at each trinucleotide context. The output artifact-prior tar.gz is used by FilterMutectCalls to filter orientation bias artifacts. This is step 3 in the GATK4 Best Practices somatic variant calling pipeline.
+categories=Variant Analysis;Somatic Variant Calling
+commandLine=bash <libdir>gatk_learnreadorientationmodel_wrapper.sh <input.tar.gz> --output.file.name <output.file.name> <num.em.iterations> <convergence.threshold> <max.depth> <arguments.file> <gatk.config.file>
+cpuType=any
+os=any
+language=Java
+taskType=Java
+taskDoc=README.md
+quality=development
+privacy=public
+job.cpuCount=2
+job.memory=8Gb
+job.docker.image=broadinstitute/gatk\:4.1.4.1
+src.repo=https://github.com/broadinstitute/gatk
+documentationUrl=https://gatk.broadinstitute.org/hc/en-us/articles/360051305331-LearnReadOrientationModel
+
+
+# Parameters
+
+p1_MODE=IN
+p1_TYPE=FILE
+p1_description=One or more F1R2 counts tar.gz files produced by Mutect2 (--f1r2-tar-gz output) or CollectF1R2Counts. Each file contains alt site counts and ref site depth histograms per trinucleotide context for a scatter of the same sample. Passed to GATK as -I / --input. Multiple files may be provided to combine scatters from the same sample.
+p1_fileFormat=tar.gz;gz
+p1_name=input.tar.gz
+p1_numValues=1+
+p1_optional=
+p1_prefix_when_specified=--input.tar.gz  
+p1_type=java.io.File
+
+p2_TYPE=TEXT
+p2_default_value=artifact-prior.tar.gz
+p2_description=Name for the output artifact prior tar.gz file. This file is used as input to FilterMutectCalls (--orientation-bias-artifact-priors). Passed to GATK as -O / --output.
+p2_name=output.file.name
+p2_numValues=1..1
+p2_optional=
+p2_type=java.lang.String
+
+p3_TYPE=Integer
+p3_description=Maximum number of Expectation-Maximization iterations before giving up on convergence. Increase this value if the model fails to converge on complex samples. Passed to GATK as --num-em-iterations. Default: 20.
+p3_name=num.em.iterations
+p3_numValues=0..1
+p3_optional=on
+p3_prefix_when_specified=--num.em.iterations  
+p3_type=java.lang.Integer
+p3_default_value=
+
+p4_TYPE=Float
+p4_description=EM convergence threshold. The algorithm stops when the parameter distance between consecutive iterations falls below this value. Passed to GATK as --convergence-threshold. Default: 1e-4.
+p4_name=convergence.threshold
+p4_numValues=0..1
+p4_optional=on
+p4_prefix_when_specified=--convergence.threshold  
+p4_type=java.lang.Float
+p4_default_value=
+
+p5_TYPE=Integer
+p5_description=Sites with read depth higher than this value will be grouped into a single bin for the EM model. Passed to GATK as --max-depth. Default: determined by GATK constants.
+p5_name=max.depth
+p5_numValues=0..1
+p5_optional=on
+p5_prefix_when_specified=--max.depth  
+p5_type=java.lang.Integer
+p5_default_value=
+
+p6_MODE=IN
+p6_TYPE=FILE
+p6_description=Optional GATK arguments file containing additional parameters to pass to LearnReadOrientationModel (one argument or argument=value per line). Use this to specify advanced GATK options not exposed as module parameters (e.g., --java-options, --tmp-dir). Passed to GATK as --arguments_file.
+p6_fileFormat=txt
+p6_name=arguments.file
+p6_numValues=0..1
+p6_optional=on
+p6_prefix_when_specified=--arguments.file  
+p6_type=java.io.File
+
+p7_MODE=IN
+p7_TYPE=FILE
+p7_description=Optional GATK configuration file (properties format) to customize GATK behavior including logging, performance settings, and default tool arguments. Passed to GATK as --gatk-config-file.
+p7_fileFormat=properties;conf;config;txt
+p7_name=gatk.config.file
+p7_numValues=0..1
+p7_optional=on
+p7_prefix_when_specified=--gatk.config.file  
+p7_type=java.io.File
+
+# Additional Properties
